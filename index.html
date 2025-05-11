@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>Shop Monitor - Income, Expenses & Stock</title>
+   <link rel="icon" href="favicon.ico" type="image/x-icon">
+   <script src="https://cdn.tailwindcss.com"></script>
+   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+   <link rel="preconnect" href="[https://fonts.googleapis.com](https://fonts.googleapis.com)">
+   <link rel="preconnect" href="[https://fonts.gstatic.com](https://fonts.gstatic.com)" crossorigin>
+   <link
+      href="[https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap](https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap)"
+      rel="stylesheet">
+
+   <style>
+      /* Custom Styles */
+      body {
+         font-family: 'Inter', sans-serif;
+      }
+
+      .nav-link.active {
+         background-color: #1d4ed8;
+         /* Darker blue for active */
+         color: white;
+      }
+
+      .nav-link {
+         transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+      }
+
+      /* Custom Modal Styles */
+      .modal-overlay {
+         position: fixed;
+         top: 0;
+         left: 0;
+         right: 0;
+         bottom: 0;
+         background-color: rgba(0, 0, 0, 0.5);
+         display: flex;
+         justify-content: center;
+         align-items: center;
+         z-index: 1000;
+         opacity: 0;
+         visibility: hidden;
+         transition: opacity 0.3s ease, visibility 0.3s ease;
+      }
+
+      .modal-overlay.visible {
+         opacity: 1;
+         visibility: visible;
+      }
+
+      .modal-content {
+         background-color: white;
+         padding: 2rem;
+         border-radius: 0.5rem;
+         box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+         width: 90%;
+         max-width: 500px;
+         transform: scale(0.95);
+         transition: transform 0.3s ease;
+      }
+
+      .modal-overlay.visible .modal-content {
+         transform: scale(1);
+      }
+
+      #custom-modal {
+         z-index: 1010;
+         /* Ensure confirmation modal is on top */
+      }
+
+      #edit-stock-modal .modal-content {
+         max-width: 650px;
+         /* Wider modal for edit form */
+      }
+
+      #adjust-stock-modal .modal-content {
+         max-width: 550px;
+         /* Slightly wider for adjust form */
+      }
+
+      /* Undo Area Styling */
+      #undo-area {
+         background-color: #e0f2fe;
+         /* Light blue */
+         color: #0c4a6e;
+         /* Dark blue text */
+         padding: 0.75rem 1rem;
+         border-radius: 0.375rem;
+         border: 1px solid #7dd3fc;
+         /* Lighter blue border */
+         display: flex;
+         justify-content: space-between;
+         align-items: center;
+         opacity: 1;
+         transition: opacity 0.5s ease-out;
+         margin-bottom: 1rem;
+      }
+
+      #undo-area.hidden {
+         opacity: 0;
+         height: 0;
+         padding-top: 0;
+         padding-bottom: 0;
+         margin-bottom: 0;
+         overflow: hidden;
+         transition: opacity 0.5s ease-out, height 0.3s ease-out, padding 0.3s ease-out, margin 0.3s ease-out;
+      }
+
+      #undo-area .undo-button {
+         background-color: #38bdf8;
+         /* Sky blue */
+         color: white;
+         padding: 0.25rem 0.75rem;
+         border-radius: 0.375rem;
+         border: none;
+         cursor: pointer;
+         font-weight: 500;
+         transition: background-color 0.2s ease;
+      }
+
+      #undo-area .undo-button:hover {
+         background-color: #0ea5e9;
+         /* Darker sky blue */
+      }
+
+      /* Text Highlighting classes */
+      .text-highlight-red {
+         color: #dc2626;
+         /* Red-600 */
+         font-weight: 600;
+      }
+
+      .text-highlight-yellow {
+         color: #d97706;
+         /* Amber-600 */
+      }
+
+      /* Disabled Row Style */
+      .row-disabled td {
+         color: #9ca3af !important;
+         /* Gray-400 */
+      }
+
+      .row-disabled .stock-level-bar {
+         background-color: #9ca3af !important;
+         /* Gray-400 */
+         width: 0% !important;
+         /* No bar for disabled */
+      }
+
+      /* Prevent hover effect on disabled rows */
+      tbody tr.row-disabled:hover {
+         background-color: #ffffff;
+         /* White */
+      }
+
+      /* Normal row hover */
+      tbody tr:hover:not(.row-disabled) {
+         background-color: #f9fafb;
+         /* Gray-50 */
+      }
+
+      /* Sorting Header Styles */
+      .sortable-header {
+         cursor: pointer;
+         user-select: none;
+         /* Prevent text selection */
+      }
+
+      .sortable-header:hover {
+         background-color: #f3f4f6;
+         /* Gray-100 */
+      }
+
+      .sort-icon {
+         display: inline-block;
+         width: 1em;
+         /* Ensure space for icon */
+         margin-left: 0.3em;
+         opacity: 0.4;
+         transition: opacity 0.2s ease;
+      }
+
+      .sortable-header.sort-asc .sort-icon,
+      .sortable-header.sort-desc .sort-icon {
+         opacity: 1;
+         /* Make icon visible when active */
+      }
+
+      /* Pagination Styles */
+      .pagination-controls {
+         display: flex;
+         justify-content: space-between;
+         align-items: center;
+         margin-top: 1rem;
+         padding-top: 0.75rem;
+         border-top: 1px solid #e5e7eb;
+         /* Gray-200 */
+      }
+
+      .pagination-button {
+         padding: 0.5rem 1rem;
+         border: 1px solid #d1d5db;
+         /* Gray-300 */
+         background-color: white;
+         color: #374151;
+         /* Gray-700 */
+         border-radius: 0.375rem;
+         cursor: pointer;
+         transition: background-color 0.2s ease;
+      }
+
+      .pagination-button:hover:not(:disabled) {
+         background-color: #f9fafb;
+         /* Gray-50 */
+      }
+
+      .pagination-button:disabled {
+         opacity: 0.5;
+         cursor: not-allowed;
+      }
+
+      .page-info {
+         font-size: 0.875rem;
+         /* text-sm */
+         color: #6b7280;
+         /* Gray-500 */
+      }
+
+      /* Visual Stock Indicator Styles */
+      .stock-indicator-container {
+         display: inline-flex;
+         align-items: center;
+         width: 100%;
+         /* Take full cell width */
+         justify-content: flex-end;
+         /* Align to the right */
+      }
+
+      .stock-level-bar-bg {
+         width: 60px;
+         /* Fixed width for the bar background */
+         height: 8px;
+         background-color: #e5e7eb;
+         /* Gray-200 */
+         border-radius: 4px;
+         overflow: hidden;
+         margin-left: 8px;
+         /* Space between number and bar */
+         display: inline-block;
+         /* Allow margin */
+      }
+
+      .stock-level-bar {
+         height: 100%;
+         border-radius: 4px;
+         transition: width 0.3s ease;
+      }
+
+      .stock-level-low {
+         background-color: #dc2626;
+         /* Red-600 */
+      }
+
+      .stock-level-medium {
+         background-color: #d97706;
+         /* Amber-600 */
+      }
+
+      .stock-level-high {
+         background-color: #16a34a;
+         /* Green-600 */
+      }
+
+      /* Summary Box Styles */
+      .summary-box {
+         display: grid;
+         grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+         gap: 1rem;
+         margin-bottom: 1.5rem;
+         padding: 1rem;
+         background-color: #f9fafb;
+         /* Gray-50 */
+         border: 1px solid #e5e7eb;
+         /* Gray-200 */
+         border-radius: 0.5rem;
+      }
+
+      .summary-item {
+         padding: 0.75rem;
+         border-radius: 0.375rem;
+         text-align: center;
+      }
+
+      .summary-item-red {
+         background-color: #fee2e2;
+         color: #991b1b;
+      }
+
+      /* Red-100 bg, Red-900 text */
+      .summary-item-yellow {
+         background-color: #fef9c3;
+         color: #854d0e;
+      }
+
+      /* Yellow-100 bg, Yellow-900 text */
+      .summary-item-blue {
+         background-color: #dbeafe;
+         color: #1e40af;
+      }
+
+      /* Blue-100 bg, Blue-800 text */
+      .summary-value {
+         font-size: 1.5rem;
+         /* text-2xl */
+         font-weight: 600;
+         display: block;
+      }
+
+      .summary-label {
+         font-size: 0.875rem;
+         /* text-sm */
+         font-weight: 500;
+      }
+
+      /* Autocomplete Suggestion Box */
+      .autocomplete-suggestions {
+         position: absolute;
+         border: 1px solid #d1d5db;
+         /* Gray-300 */
+         background-color: white;
+         max-height: 150px;
+         overflow-y: auto;
+         z-index: 999;
+         width: 100%;
+         /* Make it full width of the input container */
+         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+         border-radius: 0.375rem;
+         margin-top: 2px;
+         /* Small gap below input */
+      }
+
+      .suggestion-item {
+         padding: 0.5rem 0.75rem;
+         cursor: pointer;
+         font-size: 0.875rem;
+         /* text-sm */
+      }
+
+      .suggestion-item:hover {
+         background-color: #eff6ff;
+         /* Blue-50 */
+      }
+
+      .suggestion-item.active {
+         /* For keyboard navigation */
+         background-color: #dbeafe;
+         /* Blue-100 */
+      }
+   </style>
+</head>
+
+<body class="bg-gray-100">
+   <div class="flex h-screen bg-gray-100">
+      <aside class="w-64 bg-blue-800 text-white flex flex-col fixed h-full shadow-lg rounded-r-lg">
+         <div class="p-6 border-b border-blue-700">
+            <h1 class="text-2xl font-semibold text-center">Shop Monitor</h1>
+         </div>
+         <nav class="flex-1 p-4 space-y-2">
+            <a href="index.html" id="nav-dashboard"
+               class="nav-link flex items-center px-4 py-3 rounded-lg hover:bg-blue-700 active">
+               <i class="fas fa-tachometer-alt w-6 mr-3 text-center"></i> <span>Dashboard</span>
+            </a>
+            <a href="income.html" id="nav-income"
+               class="nav-link flex items-center px-4 py-3 rounded-lg hover:bg-blue-700">
+               <i class="fas fa-arrow-up-right-dots w-6 mr-3 text-center"></i> <span>Income / Sales</span>
+            </a>
+            <a href="expenses.html" id="nav-expenses"
+               class="nav-link flex items-center px-4 py-3 rounded-lg hover:bg-blue-700">
+               <i class="fas fa-receipt w-6 mr-3 text-center"></i> <span>Expenses</span>
+            </a>
+            <a href="stock.html" id="nav-stock"
+               class="nav-link flex items-center px-4 py-3 rounded-lg hover:bg-blue-700">
+               <i class="fas fa-boxes-stacked w-6 mr-3 text-center"></i> <span>Stock Management</span>
+            </a>
+            <a href="reports.html" id="nav-reports"
+               class="nav-link flex items-center px-4 py-3 rounded-lg hover:bg-blue-700">
+               <i class="fas fa-chart-pie w-6 mr-3 text-center"></i> <span>Reports</span>
+            </a>
+         </nav>
+         <div class="p-4 border-t border-blue-700">
+            <button id="save-backup-button"
+               class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center transition duration-150 ease-in-out">
+               <i class="fas fa-save mr-2"></i> Save & Backup
+            </button>
+         </div>
+      </aside>
+
+      <main class="flex-1 ml-64 p-8 overflow-y-auto">
+         <h2 id="page-title" class="text-3xl font-bold mb-6 text-gray-800">Dashboard</h2>
+         <div id="content-area" class="bg-white p-6 rounded-lg shadow-md min-h-[calc(100vh-150px)]">
+            <h3 class="text-xl font-semibold mb-4">Overview</h3>
+            <p>Welcome back! Use the sidebar to manage your shop.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+               <div class="bg-blue-100 p-4 rounded-lg shadow">
+                  <h4 class="font-bold text-blue-800">Total Stock Value</h4>
+                  <p class="text-2xl font-semibold" id="dashboard-stock-value">$0.00</p>
+               </div>
+               <div class="bg-green-100 p-4 rounded-lg shadow">
+                  <h4 class="font-bold text-green-800">Gross Profit (Recent)</h4>
+                  <p class="text-2xl font-semibold" id="dashboard-gross-profit">$0.00</p>
+               </div>
+               <div class="bg-red-100 p-4 rounded-lg shadow">
+                  <h4 class="font-bold text-red-800">Net Profit (Recent)</h4>
+                  <p class="text-2xl font-semibold" id="dashboard-net-profit">$0.00</p>
+               </div>
+            </div>
+            <p class="mt-4 text-sm text-gray-600">Last backup: <span id="last-backup-info">Never</span></p>
+         </div>
+      </main>
+   </div>
+
+   <div id="custom-modal" class="modal-overlay">
+      <div class="modal-content">
+         <h3 id="modal-title" class="text-xl font-semibold mb-4">Confirmation</h3>
+         <p id="modal-message" class="text-gray-700 mb-6">Are you sure?</p>
+         <div id="modal-buttons" class="flex justify-end space-x-3">
+            <button id="modal-cancel-button"
+               class="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 transition duration-150 ease-in-out">Cancel</button>
+            <button id="modal-confirm-button"
+               class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition duration-150 ease-in-out">Confirm</button>
+            <button id="modal-ok-button"
+               class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-150 ease-in-out">OK</button>
+         </div>
+      </div>
+   </div>
+   <div id="edit-stock-modal" class="modal-overlay">
+      <div class="modal-content">
+         <h3 class="text-xl font-semibold mb-4">Edit Stock Batch</h3>
+         <form id="edit-stock-form" class="space-y-4">
+            <input type="hidden" id="edit-stock-id">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+               <div>
+                  <label for="edit-stock-name" class="block text-sm font-medium text-gray-700">Item Name</label>
+                  <input type="text" id="edit-stock-name" name="edit-stock-name" required
+                     class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+               </div>
+               <div>
+                  <label for="edit-stock-unit" class="block text-sm font-medium text-gray-700">Unit</label>
+                  <select id="edit-stock-unit" name="edit-stock-unit" required
+                     class="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                     <option value="kg">kg</option>
+                     <option value="piece">piece</option>
+                     <option value="pack">pack</option>
+                     <option value="litre">litre</option>
+                     <option value="bottle">bottle</option>
+                  </select>
+               </div>
+               <div>
+                  <label for="edit-stock-quantity" class="block text-sm font-medium text-gray-700">Current
+                     Quantity</label>
+                  <input type="number" id="edit-stock-quantity" name="edit-stock-quantity" step="any" min="0" required
+                     class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+               </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+               <div>
+                  <label for="edit-stock-price" class="block text-sm font-medium text-gray-700">Purchase Price</label>
+                  <input type="number" id="edit-stock-price" name="edit-stock-price" step="0.01" min="0" required
+                     class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+               </div>
+               <div>
+                  <label for="edit-stock-date-bought" class="block text-sm font-medium text-gray-700">Date
+                     Bought</label>
+                  <input type="date" id="edit-stock-date-bought" name="edit-stock-date-bought" required
+                     class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+               </div>
+               <div>
+                  <label for="edit-stock-expiry-date" class="block text-sm font-medium text-gray-700">Expiry
+                     Date</label>
+                  <input type="date" id="edit-stock-expiry-date" name="edit-stock-expiry-date"
+                     class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+               </div>
+            </div>
+            <div class="flex justify-end space-x-3 pt-4">
+               <button type="button" id="edit-stock-cancel-button"
+                  class="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 transition duration-150 ease-in-out">Cancel</button>
+               <button type="submit"
+                  class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-150 ease-in-out">Save
+                  Changes</button>
+            </div>
+         </form>
+      </div>
+   </div>
+   <div id="adjust-stock-modal" class="modal-overlay">
+      <div class="modal-content">
+         <h3 class="text-xl font-semibold mb-1">Adjust Stock Quantity</h3>
+         <p class="text-sm text-gray-600 mb-4" id="adjust-item-info">Adjusting: Item Name</p>
+         <form id="adjust-stock-form" class="space-y-4">
+            <input type="hidden" id="adjust-stock-id">
+            <div>
+               <label for="adjust-amount" class="block text-sm font-medium text-gray-700">Adjustment Amount</label>
+               <input type="number" id="adjust-amount" name="adjust-amount" step="any" required
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  placeholder="e.g., -1.5 or 5">
+               <p class="mt-1 text-xs text-gray-500">Enter a negative number to decrease quantity (e.g., -2 for
+                  spoilage), positive to increase (e.g., 1 for found item).</p>
+            </div>
+            <div>
+               <label for="adjust-reason" class="block text-sm font-medium text-gray-700">Reason</label>
+               <select id="adjust-reason" name="adjust-reason" required
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                  <option value="">-- Select Reason --</option>
+                  <option value="Spoilage">Spoilage</option>
+                  <option value="Damage">Damage</option>
+                  <option value="Correction">Count Correction</option>
+                  <option value="Found">Found Item</option>
+                  <option value="Other">Other</option>
+               </select>
+            </div>
+            <div class="flex justify-end space-x-3 pt-4">
+               <button type="button" id="adjust-stock-cancel-button"
+                  class="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 transition duration-150 ease-in-out">Cancel</button>
+               <button type="submit"
+                  class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition duration-150 ease-in-out">Apply
+                  Adjustment</button>
+            </div>
+         </form>
+      </div>
+   </div>
+
+   <script>
+      // --- COPIED SHARED JS VARIABLES & FUNCTIONS ---
+      // Global State (Needed for loading/saving and calculations)
+      let appData = { income: [], expenses: [], stock: [], metadata: { lastBackup: null } };
+      let modalConfirmCallback = null; // Needed for confirm modal
+
+      // DOM Elements (Only common ones needed for shared functions)
+      const confirmModal = document.getElementById('custom-modal');
+      const modalTitle = document.getElementById('modal-title');
+      const modalMessage = document.getElementById('modal-message');
+      const modalButtons = document.getElementById('modal-buttons');
+      const modalConfirmBtn = document.getElementById('modal-confirm-button');
+      const modalCancelBtn = document.getElementById('modal-cancel-button');
+      const modalOkBtn = document.getElementById('modal-ok-button');
+      // Edit/Adjust modal elements are not strictly needed by dashboard JS,
+      // but keep setup functions if modals might be triggered globally later.
+      const editModal = document.getElementById('edit-stock-modal');
+      const adjustModal = document.getElementById('adjust-stock-modal');
+
+
+      // --- Shared Functions (Copied from original script) ---
+
+      // Modal Setup and Functions (Keep all modal logic as it's shared UI)
+      function setupConfirmModal() {
+         modalCancelBtn?.addEventListener('click', hideConfirmModal);
+         modalOkBtn?.addEventListener('click', hideConfirmModal);
+         modalConfirmBtn?.addEventListener('click', () => {
+            if (typeof modalConfirmCallback === 'function') {
+               try { modalConfirmCallback(); } catch (error) { console.error("Callback Error:", error); showCustomAlert("Action error.", "Error"); }
+            } else { console.warn("No confirm callback set."); }
+            hideConfirmModal();
+         });
+         confirmModal?.addEventListener('click', (event) => { if (event.target === confirmModal) { hideConfirmModal(); } });
+      }
+      function showConfirmModal(title, message, type = 'alert') {
+         if (!confirmModal || !modalTitle || !modalMessage || !modalConfirmBtn || !modalCancelBtn || !modalOkBtn) return; // Safety check
+         console.log(`[ConfirmModal] Show: ${type} - ${title}`);
+         modalTitle.textContent = title;
+         modalMessage.textContent = message;
+         modalConfirmCallback = null;
+         modalConfirmBtn.style.display = (type === 'confirm') ? 'inline-block' : 'none';
+         modalCancelBtn.style.display = (type === 'confirm') ? 'inline-block' : 'none';
+         modalOkBtn.style.display = (type === 'alert') ? 'inline-block' : 'none';
+         modalConfirmBtn.className = 'px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition duration-150 ease-in-out'; // Default confirm style
+         confirmModal.classList.add('visible');
+      }
+      function hideConfirmModal() {
+         if (confirmModal && confirmModal.classList.contains('visible')) {
+            console.log("[ConfirmModal] Hide");
+            confirmModal.classList.remove('visible');
+            if (modalConfirmCallback) {
+               console.log("[ConfirmModal] Clearing callback on hide.");
+               modalConfirmCallback = null;
+            }
+         }
+      }
+      function showCustomAlert(message, title = "Alert") {
+         showConfirmModal(title, message, 'alert');
+      }
+      function showCustomConfirm(message, onConfirm, title = "Confirmation", confirmBtnClass = 'bg-red-600 hover:bg-red-700') {
+         if (!modalConfirmBtn) return;
+         console.log('[showCustomConfirm] Received onConfirm type:', typeof onConfirm);
+         if (typeof onConfirm === 'function') {
+            showConfirmModal(title, message, 'confirm');
+            modalConfirmCallback = onConfirm;
+            console.log('[showCustomConfirm] Callback assigned.');
+            // Apply specific button style if provided
+            modalConfirmBtn.className = `px-4 py-2 text-white rounded-md transition duration-150 ease-in-out ${confirmBtnClass}`;
+         } else {
+            console.error("Invalid onConfirm param.");
+            showCustomAlert("Internal error (confirm setup).", "Error");
+         }
+      }
+      // Keep Edit/Adjust modal setup/show/hide functions for consistency, even if not directly used by dashboard logic
+      function setupEditModal() {
+         const editStockCancelBtn = document.getElementById('edit-stock-cancel-button');
+         const editStockForm = document.getElementById('edit-stock-form'); // Needed if form submit is handled globally
+         editStockCancelBtn?.addEventListener('click', hideEditModal);
+         editModal?.addEventListener('click', (event) => { if (event.target === editModal) { hideEditModal(); } });
+         // editStockForm?.addEventListener('submit', handleUpdateStockItem); // Submit handled in stock.html
+      }
+      function showEditModal(stockItem) { /* Keep function definition */
+         if (!editModal) return;
+         console.log("[EditModal] Showing for item:", stockItem?.id);
+         // Populate form fields (even if not used on dashboard, keeps function intact)
+         document.getElementById('edit-stock-id').value = stockItem?.id || '';
+         document.getElementById('edit-stock-name').value = stockItem?.name || '';
+         document.getElementById('edit-stock-unit').value = stockItem?.unit || 'kg';
+         document.getElementById('edit-stock-quantity').value = stockItem?.quantity || 0;
+         document.getElementById('edit-stock-price').value = stockItem?.purchasePrice || 0;
+         document.getElementById('edit-stock-date-bought').value = stockItem?.dateBought || '';
+         document.getElementById('edit-stock-expiry-date').value = stockItem?.expiryDate || '';
+         editModal.classList.add('visible');
+      }
+      function hideEditModal() { /* Keep function definition */
+         if (editModal && editModal.classList.contains('visible')) {
+            console.log("[EditModal] Hide");
+            editModal.classList.remove('visible');
+            document.getElementById('edit-stock-form')?.reset();
+         }
+      }
+      function setupAdjustModal() {
+         const adjustStockCancelBtn = document.getElementById('adjust-stock-cancel-button');
+         const adjustStockForm = document.getElementById('adjust-stock-form'); // Needed if handled globally
+         adjustStockCancelBtn?.addEventListener('click', hideAdjustModal);
+         adjustModal?.addEventListener('click', (event) => { if (event.target === adjustModal) { hideAdjustModal(); } });
+         // adjustStockForm?.addEventListener('submit', handleStockAdjustmentSubmit); // Submit handled in stock.html
+      }
+      function showAdjustModal(stockItem) { /* Keep function definition */
+         if (!adjustModal) return;
+         const adjustItemInfo = document.getElementById('adjust-item-info');
+         console.log("[AdjustModal] Showing for item:", stockItem?.id);
+         document.getElementById('adjust-stock-id').value = stockItem?.id || '';
+         if (adjustItemInfo) adjustItemInfo.textContent = `Adjusting: ${stockItem?.name || '?'} (Bought: ${formatDate(stockItem?.dateBought)}, Current: ${stockItem?.quantity || 0} ${stockItem?.unit || '?'})`;
+         adjustModal.classList.add('visible');
+      }
+      function hideAdjustModal() { /* Keep function definition */
+         if (adjustModal && adjustModal.classList.contains('visible')) {
+            console.log("[AdjustModal] Hide");
+            adjustModal.classList.remove('visible');
+            document.getElementById('adjust-stock-form')?.reset();
+         }
+      }
+
+      // Data Persistence & Backup (Needed for saving and backup button)
+      function saveDataToLocalStorage() {
+         try {
+            localStorage.setItem('shopMonitorData', JSON.stringify(appData));
+            console.log("Data saved.");
+            updateLastBackupTime(new Date()); // Update time on successful save
+         } catch (error) {
+            console.error("Save Error:", error);
+            showCustomAlert("Error saving data. Storage might be full.", "Save Error");
+         }
+      }
+      function loadDataFromLocalStorage() {
+         const dataString = localStorage.getItem('shopMonitorData');
+         if (dataString) {
+            try {
+               const loadedData = JSON.parse(dataString);
+               // Basic validation and default assignments
+               appData.income = Array.isArray(loadedData.income) ? loadedData.income : [];
+               appData.expenses = Array.isArray(loadedData.expenses) ? loadedData.expenses : [];
+               appData.stock = Array.isArray(loadedData.stock) ? loadedData.stock : [];
+               appData.metadata = typeof loadedData.metadata === 'object' && loadedData.metadata !== null ? loadedData.metadata : { lastBackup: null };
+               // Ensure initialQuantity exists (simple migration)
+               appData.stock.forEach(item => {
+                  if (item.initialQuantity === undefined || item.initialQuantity === null) {
+                     console.log(`Migrating item ${item.id}: Setting initialQuantity`);
+                     item.initialQuantity = item.quantity;
+                  }
+               });
+               console.log("Data loaded successfully.");
+            } catch (error) {
+               console.error("Load Error:", error);
+               showCustomAlert("Error loading data. It might be corrupted. Starting fresh.", "Load Error");
+               // Reset to default if loading fails
+               appData = { income: [], expenses: [], stock: [], metadata: { lastBackup: null } };
+            }
+         } else {
+            console.log("No saved data found. Starting fresh.");
+            // Ensure default structure exists even if no data is loaded
+            appData = { income: [], expenses: [], stock: [], metadata: { lastBackup: null } };
+         }
+         updateLastBackupDisplay(); // Update display after loading
+      }
+      function handleSaveAndBackup() {
+         console.log("Save & Backup initiated...");
+         saveDataToLocalStorage(); // Save current state first
+         try {
+            const timestamp = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
+            // Generate CSV for each data type
+            const incomeCsv = generateCsv(appData.income, ['id', 'date', 'description', 'itemName', 'quantitySold', 'sellingPricePerUnit', 'totalSale', 'calculatedCogs', 'grossProfit', 'profitPerUnit']);
+            const expensesCsv = generateCsv(appData.expenses, ['id', 'date', 'amount', 'category', 'description', 'stockUpdates']); // Assuming expense structure
+            const stockCsv = generateCsv(appData.stock, ['id', 'name', 'unit', 'quantity', 'initialQuantity', 'purchasePrice', 'dateBought', 'expiryDate']);
+
+            // Trigger downloads
+            if (incomeCsv) downloadCsv(incomeCsv, `backup-income-${timestamp}.csv`);
+            if (expensesCsv) downloadCsv(expensesCsv, `backup-expenses-${timestamp}.csv`);
+            if (stockCsv) downloadCsv(stockCsv, `backup-stock-${timestamp}.csv`);
+
+            console.log("Backup files generated for download.");
+            showCustomAlert("Data saved & backup files are being downloaded!", "Backup Successful");
+
+         } catch (error) {
+            console.error("Backup Generation/Download Error:", error);
+            showCustomAlert("Data saved, but backup file generation failed.", "Backup Error");
+         }
+      }
+      function generateCsv(data, headers) {
+         if (!Array.isArray(data) || data.length === 0) return ''; // Handle empty or invalid data
+
+         const columns = headers || Object.keys(data[0] || {}); // Use provided headers or infer from first object
+         if (columns.length === 0) return ''; // No columns to write
+
+         // CSV Header Row
+         let csvContent = columns.map(col => `"${String(col).replace(/"/g, '""')}"`).join(',') + '\n';
+
+         // CSV Data Rows
+         data.forEach(row => {
+            const values = columns.map(col => {
+               let value = row[col];
+               // Handle null, undefined, objects, and escaping
+               if (value === null || value === undefined) {
+                  value = '';
+               } else if (typeof value === 'object') {
+                  value = JSON.stringify(value); // Stringify objects/arrays
+               }
+               value = String(value).replace(/"/g, '""'); // Escape double quotes
+               if (String(value).includes(',')) {
+                  value = `"${value}"`; // Enclose in quotes if it contains a comma
+               }
+               return value;
+            });
+            csvContent += values.join(',') + '\n';
+         });
+
+         return csvContent;
+      }
+      function downloadCsv(csvContent, filename) {
+         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+         const link = document.createElement("a");
+
+         if (link.download !== undefined) { // Check for download attribute support
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url); // Clean up blob URL
+         } else {
+            // Fallback or error for browsers that don't support download attribute
+            showCustomAlert("CSV download not directly supported by your browser.", "Download Error");
+         }
+      }
+
+      // Utility Functions (Needed for formatting and dates)
+      function generateId(prefix = 'id') {
+         // Simple ID generator
+         return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+      }
+      function formatCurrency(amount) {
+         // Format number as currency (e.g., Rs 1,234.50) - Adjust locale/currency as needed
+         const formatter = new Intl.NumberFormat('en-LK', { // Use Sri Lankan English locale
+            style: 'currency',
+            currency: 'LKR', // Sri Lankan Rupee
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+         });
+         // Check if amount is a valid number before formatting
+         const numAmount = Number(amount);
+         if (isNaN(numAmount)) {
+            return 'Rs 0.00'; // Or some other placeholder for invalid input
+         }
+         return formatter.format(numAmount).replace('LKR', 'Rs'); // Replace currency code with 'Rs'
+      }
+      function formatDate(dateString) {
+         // Format date string (YYYY-MM-DD) to a more readable format or keep as is
+         if (!dateString) return 'N/A';
+         try {
+            // Assuming dateString is 'YYYY-MM-DD'
+            const date = new Date(dateString + 'T00:00:00'); // Add time to avoid timezone issues
+            // Use 'en-CA' for YYYY-MM-DD format, or choose another locale like 'en-GB' for DD/MM/YYYY
+            return date.toLocaleDateString('en-CA');
+         } catch (e) {
+            console.error("Error formatting date:", dateString, e);
+            return 'Invalid Date';
+         }
+      }
+      function getShortDate(date = new Date()) {
+         // Get date in YYYY-MM-DD format
+         if (!(date instanceof Date)) {
+            date = new Date(); // Default to now if invalid date passed
+         }
+         return date.toISOString().slice(0, 10);
+      }
+      function updateLastBackupTime(date) {
+         // Update the backup timestamp in appData
+         if (date instanceof Date) {
+            appData.metadata.lastBackup = date.toISOString();
+            updateLastBackupDisplay(); // Update the UI immediately
+         }
+      }
+      function updateLastBackupDisplay() {
+         // Update the 'Last backup' info text on the page
+         const infoElement = document.getElementById('last-backup-info');
+         let displayText = "Never";
+         if (appData.metadata?.lastBackup) {
+            try {
+               displayText = new Date(appData.metadata.lastBackup).toLocaleString();
+            } catch (e) {
+               displayText = "Invalid date";
+            }
+         }
+         if (infoElement) {
+            infoElement.textContent = displayText;
+         }
+      }
+
+      // Dashboard Update Logic (Central calculation function)
+      function updateDashboardSummary() {
+         const stockValueEl = document.getElementById('dashboard-stock-value');
+         const grossProfitEl = document.getElementById('dashboard-gross-profit');
+         const netProfitEl = document.getElementById('dashboard-net-profit');
+
+         // Calculate Total Stock Value
+         if (stockValueEl) {
+            const totalStockValue = appData.stock.reduce((sum, item) => {
+               // Ensure quantity and price are numbers
+               const quantity = Number(item.quantity) || 0;
+               const price = Number(item.purchasePrice) || 0;
+               return sum + (quantity * price);
+            }, 0);
+            stockValueEl.textContent = formatCurrency(totalStockValue);
+         }
+
+         // Calculate Recent Profit (Example: Last 30 days)
+         if (grossProfitEl || netProfitEl) {
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            const thirtyDaysAgoStr = getShortDate(thirtyDaysAgo);
+
+            // Filter income and expenses within the last 30 days
+            const recentIncome = appData.income.filter(inc => inc.date >= thirtyDaysAgoStr);
+            const recentExpenses = appData.expenses.filter(exp => exp.date >= thirtyDaysAgoStr); // Assuming expenses have 'date' and 'amount'
+
+            // Calculate total gross profit from recent income
+            const totalRecentGrossProfit = recentIncome.reduce((sum, inc) => {
+               const profit = Number(inc.grossProfit) || 0; // Use calculated grossProfit if available
+               return sum + profit;
+            }, 0);
+
+            // Calculate total recent expenses
+            const totalRecentExpenses = recentExpenses.reduce((sum, exp) => {
+               const amount = Number(exp.amount) || 0;
+               return sum + amount;
+            }, 0);
+
+            // Calculate net profit
+            const totalRecentNetProfit = totalRecentGrossProfit - totalRecentExpenses;
+
+            if (grossProfitEl) grossProfitEl.textContent = formatCurrency(totalRecentGrossProfit);
+            if (netProfitEl) netProfitEl.textContent = formatCurrency(totalRecentNetProfit);
+         }
+      }
+
+
+      // --- SECTION-SPECIFIC JS (Dashboard) ---
+      // No dashboard-specific variables needed globally.
+
+      // Dashboard setup function
+      function setupDashboardSection() {
+         console.log("Setting up Dashboard Section...");
+         // The only action needed on dashboard load is to update the summary values
+         updateDashboardSummary();
+      }
+
+
+      // --- INITIALIZATION for this page ---
+      document.addEventListener('DOMContentLoaded', () => {
+         console.log("Initializing Dashboard page...");
+         loadDataFromLocalStorage(); // Load data first
+
+         // Setup common UI components needed globally or by shared functions
+         setupConfirmModal();
+         // Keep edit/adjust modal setup in case they are triggered globally
+         setupEditModal();
+         setupAdjustModal();
+
+         // Call the main setup function for THIS section
+         setupDashboardSection();
+
+         // Update common displays
+         updateLastBackupDisplay();
+
+         // Attach listener for the backup button
+         const saveBackupButton = document.getElementById('save-backup-button');
+         saveBackupButton?.addEventListener('click', handleSaveAndBackup);
+
+         console.log("Dashboard Initialization Complete.");
+      });
+
+   </script>
+
+</body>
+
+</html>
